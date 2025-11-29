@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Smart Bin</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <!-- Font Awesome for the eye icon (optional) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body {font-family: 'Roboto', sans-serif; background-color: #f0f4f8; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0;}
+        .login-box {width:100%; max-width:420px; padding:26px; border-radius:10px; background:#fff; box-shadow:0 6px 18px rgba(0,0,0,0.08);}
+        h2 {text-align:center; margin:0 0 18px 0;}
+        label {display:block; margin-bottom:6px; font-weight:600; color:#333;}
+        input[type="text"], input[type="password"] {
+            width:100%; padding:10px 12px; margin-bottom:14px; border:1px solid #dfe6ee; border-radius:6px; box-sizing:border-box;
+            background:#fbfdff;
+        }
+        .password-wrap { position: relative; }
+        .password-wrap input { padding-right:46px; } /* room for the toggle */
+        /* Small inline toggle inside the input */
+        button.toggle-password {
+            -webkit-appearance:none; appearance:none;
+            border:none; background:transparent !important;
+            width:34px; height:34px; padding:0; margin:0;
+            position:absolute; right:8px; top:50%; transform:translateY(-50%);
+            display:inline-flex; align-items:center; justify-content:center;
+            cursor:pointer; color:#6b7280; font-size:15px;
+        }
+        button.toggle-password:focus { outline:none; box-shadow:none; }
+        button.primary {
+            width:100%; padding:12px 14px; border-radius:8px; border:none; background:#00b4d8; color:#fff;
+            font-weight:700; cursor:pointer; transition: background .18s;
+        }
+        button.primary:hover { background:#0096c7; }
+        .link { text-align:center; margin-top:12px; font-size:0.92rem; }
+        .messages { list-style:none; padding:0; margin:0 0 12px 0; }
+        .messages li { margin-bottom:8px; padding:8px; border-radius:6px; font-size:0.92rem; }
+        .error { background:#fff0f0; color:#b00020; border:1px solid #ffd7d7; }
+        .success { background:#f0fff4; color:#047857; border:1px solid #d1ffd6; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>Smart Bin Login</h2>
+
+        {% with messages = get_flashed_messages(with_categories=True) %}
+            {% if messages %}
+                <ul class="messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required placeholder="Enter your username">
+
+            <label for="password">Password</label>
+            <div class="password-wrap">
+                <input type="password" id="password" name="password" required placeholder="Enter your password">
+                <button type="button" class="toggle-password" aria-label="Show password"><i class="fa-regular fa-eye"></i></button>
+            </div>
+
+            <div style="margin-top:8px;">
+                <button type="submit" class="primary">Log In</button>
+            </div>
+        </form>
+
+        <p class="link">
+            <a href="{{ url_for('register') }}">Register New User</a>
+        </p>
+        <p class="link">
+            <a href="{{ url_for('forgot_password') }}">Forgot Password?</a>
+        </p>
+    </div>
+
+    <script>
+    // Small password toggle for login page
+    $(document).ready(function() {
+        $('.toggle-password').on('click', function(e) {
+            e.preventDefault();
+            var wrap = $(this).closest('.password-wrap');
+            var input = wrap.find('input[type="password"], input[type="text"]').first();
+            var icon = $(this).find('i');
+            if (input.attr('type') === 'password') {
+                input.attr('type', 'text');
+                icon.removeClass('fa-eye').addClass('fa-eye-slash');
+                $(this).attr('aria-label', 'Hide password');
+            } else {
+                input.attr('type', 'password');
+                icon.removeClass('fa-eye-slash').addClass('fa-eye');
+                $(this).attr('aria-label', 'Show password');
+            }
+        });
+    });
+    </script>
+</body>
+</html>

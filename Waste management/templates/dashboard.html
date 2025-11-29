@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Bin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Pacifico&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+  <style>
+    /* ------------------------------------------------------------------- */
+    /* MIRROR BLUE N' WHITE THEME STYLES */
+    /* ------------------------------------------------------------------- */
+    body { 
+        margin: 0;
+        font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+        min-height: 100vh;
+        /* Local static image to avoid hotlinking issues */
+        background: linear-gradient(0deg, rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url('/static/images/dashboard-bg.jpg') center / cover no-repeat fixed;
+        color: #1e3a5a; 
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    .header-banner { 
+        background-color: #0077b6; /* Deep Mirror Blue */
+        color: white; 
+        padding: 20px; 
+        text-align: center; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        position: relative; 
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .logo-img { width: 50px; height: 50px; margin-right: 15px; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)); }
+    .container { max-width: 1200px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    
+    /* BUTTONS/FORM STYLES */
+    .delete-btn { background-color: #ff4757; color: white; border: none; border-radius: 5px; cursor: pointer; padding: 5px 10px; font-weight: bold; }
+    .pickup-done { background-color: #2ed573; color: white; border: none; border-radius: 5px; cursor: pointer; padding: 10px 20px; font-weight: bold; }
+    
+    /* INPUT/SELECT STYLES */
+    select, input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 1px solid #b3e0ff; border-radius: 4px; box-sizing: border-box; }
+    
+    /* TABLE STYLES - CRUCIAL FOR ALIGNMENT */
+    #binsTable { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 15px; 
+        table-layout: fixed; /* Ensures TH widths are respected */
+    } 
+    #binsTable th, #binsTable td { 
+        padding: 12px 15px; 
+        text-align: left; 
+        border-bottom: 1px solid #b3e0ff; 
+        box-sizing: border-box; 
+    }
+    #binsTable th { background-color: #0077b6; color: white; font-weight: 700; }
+    tr:nth-child(even) { background: #f8fbfc; }
+    
+    /* Status Colors */
+    .status-full { background-color: #ffdddd; color: #d63031; font-weight: bold; }
+    .status-scheduled { background-color: #fff2cc; color: #ff9800; font-weight: bold; }
+    .status-empty { background-color: #e6f7ff; color: #0077b6; font-weight: bold; }
+    .bin-img { width: 24px; height: 24px; vertical-align: middle; margin-right: 5px; }
+
+    /* Base Column Width Definitions on TH */
+    #checkbox-header { width: 5%; }
+    #binsTable th:nth-child(2) { width: 5%; }  /* ID */
+    #binsTable th:nth-child(3) { width: 15%; } /* Type */
+    #binsTable th:nth-child(4) { width: 25%; } /* Status */
+    #binsTable th:nth-child(5) { width: 15%; } /* Location */
+    #binsTable th:nth-child(6) { width: 20%; } /* Last Pickup */
+    #binsTable th:nth-child(7) { width: 15%; } /* Actions */
+
+    /* Alignment Fix Class: Collapse cell content to zero size, preserving column structure. */
+    .collapse-cell {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        width: 0.01px; 
+        white-space: nowrap;
+        overflow: hidden;
+        visibility: hidden;
+    }
+
+    /* Responsive adjustments for mobile screens */
+    @media (max-width: 768px) {
+        .container { padding: 10px; }
+        #binsTable th, #binsTable td {
+            padding: 6px 8px;
+            font-size: 0.95em;
+        }
+        .header-banner { flex-direction: column; }
+        .logo-img { margin-bottom: 10px; margin-right: 0; }
+        #binsTable { font-size: 0.97em; }
+    }
+
+    /* Utility classes */
+    .form-row { display: flex; flex-wrap: wrap; gap: 20px; }
+    .filters label, .bulk-update label { margin-right: 20px; }
+
+    .modal {
+        display: none; 
+        position: fixed; 
+        z-index: 1000; 
+        left: 0; top: 0; width: 100%; height: 100%; 
+        align-items: center; 
+        justify-content: center;
+        background: rgba(0,0,0,0.2);
+    }
+    .modal-content {
+        background: #fff; 
+        padding: 25px 30px;
+        border-radius: 8px;
+        min-width: 320px;
+        max-width: 90vw;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; }
+    .close-btn { font-size: 2em; color: #d63031; cursor: pointer; margin-left: 15px; }
+
+    /* --- MODIFICATION: Style for the "View Proof" link --- */
+    #pickupHistory .proof-link {
+        color: #0077b6;
+        font-weight: bold;
+        text-decoration: none;
+        font-size: 0.9em;
+        margin-left: 8px;
+        border: 1px solid #0077b6;
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+    #pickupHistory .proof-link:hover {
+        background-color: #e6f7ff;
+        text-decoration: none;
+    }
+    /* ----------------------------------------------------- */
+
+  </style>
+</head>
+<body>
+  
+  <header class="header-banner">
+    <img src="https://cdn-icons-png.flaticon.com/512/3097/3097423.png" alt="Smart Bin" class="logo-img">
+    <h1>Smart Bin Management</h1>
+  </header>
+
+  <div class="container">
+    <p style="text-align: right; font-weight: bold; margin-bottom: 20px;">
+        <span id="userGreeting">Logged in as: {{ current_username }} ({{ user_role|capitalize }})</span> | 
+        <a href="{{ url_for('logout') }}" class="delete-btn" style="padding: 5px 12px; font-size: 0.9em; display: inline-block;"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+    </p>
+    
+    <div id="manager-form" style="display: none;">
+      <h2><i class="fa-solid fa-circle-plus" style="color:#00b894"></i> Register or Update Bin</h2>
+      <form id="addBinForm">
+        <div class="form-row">
+          <label>Type:
+            <select name="type" required>
+              <option value="">Select</option>
+              <option value="plastic">Plastic</option>
+              <option value="paper">Paper</option>
+              <option value="glass">Glass</option>
+              <option value="organic">Organic</option>
+              <option value="metal">Metal</option>
+            </select>
+          </label>
+          <label>Status:
+            <select name="status" required>
+              <option value="empty">Empty</option>
+              <option value="low">Low</option>
+              <option value="half_full">Half Full</option>
+              <option value="full">Full</option>
+              <option value="scheduled">Scheduled</option>
+            </select>
+          </label>
+          <label>Location:
+            <input type="text" name="location" required>
+          </label>
+          <label>Bin ID (Optional for Update):
+            <input type="number" name="id">
+          </label>
+          <button type="submit" style="background-color: #00b894; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;"><i class="fa-solid fa-floppy-disk"></i> Submit Bin</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="filters">
+        <h2><i class="fa-solid fa-filter" style="color:#0077b6"></i> Data Filters</h2>
+        <label>Filter Type:
+          <select id="filterType">
+            <option value="">All Types</option>
+            <option value="plastic">Plastic</option>
+            <option value="paper">Paper</option>
+            <option value="glass">Glass</option>
+            <option value="organic">Organic</option>
+            <option value="metal">Metal</option>
+          </select>
+        </label>
+        <label>Filter Status:
+          <select id="filterStatus">
+            <option value="">All Statuses</option>
+            <option value="full">Full</option>
+            <option value="half_full">Half Full</option>
+            <option value="low">Low</option>
+            <option value="empty">Empty</option>
+            <option value="scheduled">Scheduled</option>
+          </select>
+        </label>
+    </div>
+
+    <div style="margin-top: 35px;">
+        <h2><i class="fa-solid fa-table-list" style="color:#0984e3"></i> Current Bin Status</h2>
+        <table id="binsTable">
+          <thead>
+            <tr>
+              <th id="checkbox-header">
+                  <input type="checkbox" id="selectAll">
+              </th>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Location</th>
+              <th>Last Pickup</th>
+              <th id="delete-header">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="manager-actions" style="display: none;">
+      <div class="bulk-update">
+        <h2><i class="fa-solid fa-screwdriver-wrench"></i> Manager Actions</h2>
+        <label>Bulk Status Change:
+          <select id="bulkStatus">
+            <option value="">Select new status</option>
+            <option value="full">Full</option>
+            <option value="half_full">Half Full</option>
+            <option value="low">Low</option>
+            <option value="empty">Empty</option>
+            <option value="scheduled">Scheduled</option>
+          </select>
+        </label>
+        <button id="bulkUpdateBtn" style="background-color: #0077b6; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;"><i class="fa-solid fa-arrows-rotate"></i> Apply Bulk Status</button>
+      </div>
+
+      <div style="display: flex; gap: 15px; margin-top: 25px;">
+          <button id="scheduleBtn" class="pickup-btn" onclick="openScheduleModal()" style="background-color: #00b4d8; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">
+            <i class="fa-solid fa-truck"></i> Schedule Pickup
+          </button>
+          <button id="pickupDoneBtn" class="pickup-btn pickup-done">
+            <i class="fa-solid fa-check-double"></i> Mark All Scheduled Done
+          </button>
+      </div>
+    </div>
+
+    <h2><i class="fa-solid fa-clock-rotate-left" style="color:#fdcb6e"></i> Pickup History</h2>
+    <ul id="pickupHistory"></ul>
+  </div>
+
+  <div id="scheduleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-truck"></i> Assign Pickup</h2>
+            <span class="close-btn" onclick="closeScheduleModal()">&times;</span>
+        </div>
+        <p>Assign all <b>Full</b> bins (owned by you) to the selected worker:</p>
+        <form id="assignWorkerForm">
+            <label>Select Worker (Associated with your ID):</label>
+            <select id="workerSelect" name="worker_id" required>
+                </select>
+            
+            <p id="binsToScheduleCount" style="margin-top: 15px; font-weight: bold;"></p>
+            
+            <button type="submit" style="margin-top: 20px; background-color: #00b4d8; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;"><i class="fa-solid fa-calendar-check"></i> Confirm and Schedule</button>
+        </form>
+    </div>
+  </div>
+
+  <div id="photoModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fa-solid fa-camera"></i> Confirm Pickup</h2>
+            <span class="close-btn" onclick="closePhotoModal()">&times;</span>
+        </div>
+        <p>Pickup complete for Bin ID: <b id="photoBinId"></b>. Please upload a photo of the empty bin for confirmation.</p>
+        <form id="photoConfirmForm">
+            <input type="hidden" id="photoBinIdInput" name="bin_id">
+            <label for="pickupPhoto">Upload Photo Proof:</label>
+            <input type="file" id="pickupPhoto" name="pickupPhoto" accept="image/*" required style="margin-bottom: 20px;">
+            
+            <button type="submit" style="margin-top: 10px; background-color: #2ed573; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;"><i class="fa-solid fa-check"></i> Confirm and Set Empty</button>
+        </form>
+    </div>
+  </div>
+
+
+  <script>
+    // General modal functions
+    const scheduleModal = document.getElementById('scheduleModal');
+    const photoModal = document.getElementById('photoModal');
+    let currentBinIdForPhoto = null;
+
+    function openScheduleModal() {
+        if (USER_ROLE !== 'manager') return;
+        populateWorkerSelect();
+        scheduleModal.style.display = 'flex';
+    }
+    function closeScheduleModal() {
+        scheduleModal.style.display = 'none';
+    }
+
+    function openPhotoModal(binId) {
+        if (USER_ROLE !== 'worker') return;
+        currentBinIdForPhoto = binId;
+        document.getElementById('photoBinId').textContent = binId;
+        document.getElementById('photoBinIdInput').value = binId;
+        document.getElementById('pickupPhoto').value = ''; 
+        photoModal.style.display = 'flex';
+    }
+    function closePhotoModal() {
+        currentBinIdForPhoto = null;
+        photoModal.style.display = 'none';
+    }
+
+
+    const binIcons = {
+      plastic: 'https://cdn-icons-png.flaticon.com/32/2331/2331966.png',
+      paper: 'https://cdn-icons-png.flaticon.com/32/2331/2331973.png',
+      glass: 'https://cdn-icons-png.flaticon.com/32/2331/2331978.png',
+      organic: 'https://cdn-icons-png.flaticon.com/32/2331/2331970.png',
+      metal: 'https://cdn-icons-png.flaticon.com/32/2331/2331975.png'
+    };
+    
+    const USER_ROLE = '{{ user_role }}';
+    const CURRENT_USER_ID = '{{ current_user_id }}'; 
+
+    async function fetchBins() {
+      const resp = await fetch('/api/bins');
+      if (resp.status === 401) {
+           window.location.href = "{{ url_for('login') }}";
+           return [];
+      }
+      return resp.json();
+    }
+
+    async function fetchHistory() {
+        const resp = await fetch('/api/history');
+        const history = await resp.json();
+        const ul = document.getElementById('pickupHistory');
+        ul.innerHTML = '';
+        
+        history.forEach(item => {
+            let photoLink = '';
+            
+            // --- MODIFICATION: Check for 'image_data' and create a viewable link ---
+            if (item.image_data) {
+                // Create a link that opens the Base64 data URI in a new tab
+                photoLink = ` <a href="${item.image_data}" target="_blank" class="proof-link" title="View Proof">
+                                <i class="fa-solid fa-camera"></i> View Proof
+                              </a>`;
+            }
+            // -------------------------------------------------------------------
+
+            const li = document.createElement('li');
+            li.innerHTML = `${item.time} - ${item.event} (By: ${item.actor})${photoLink}`;
+            ul.appendChild(li);
+        });
+    }
+
+    // Cache for managers and workers
+    let allManagers = [];
+    let allWorkers = [];
+
+    async function populateWorkerSelect() {
+        const select = document.getElementById('workerSelect');
+        const countDisplay = document.getElementById('binsToScheduleCount');
+        select.innerHTML = '<option value="">--- Select Worker ---</option>';
+        
+        const resp = await fetch('/api/managers');
+        if (resp.status === 403) {
+            countDisplay.textContent = 'Error: Cannot fetch worker data (Permission denied).';
+            return;
+        }
+        const data = await resp.json();
+        allManagers = data.managers;
+        allWorkers = data.workers;
+
+        const bins = await fetchBins();
+        const count = bins.filter(b => b.status === 'full').length; 
+
+        if (count === 0) {
+            countDisplay.textContent = 'No bins currently ready for pickup.';
+        } else {
+            countDisplay.textContent = `${count} bins are ready for pickup.`;
+        }
+
+        const currentManagerId = CURRENT_USER_ID; 
+        const associatedWorkers = allWorkers.filter(w => w.manager_id == currentManagerId);
+
+        if (associatedWorkers.length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = `Your Workers:`;
+            
+            associatedWorkers.forEach(worker => {
+                const option = document.createElement('option');
+                option.value = worker.id;
+                option.textContent = `${worker.username} (ID: ${worker.id})`;
+                optgroup.appendChild(option);
+            });
+            select.appendChild(optgroup);
+        } else {
+             const option = document.createElement('option');
+             option.disabled = true;
+             option.textContent = 'No associated workers found.';
+             select.appendChild(option);
+        }
+    }
+
+
+    function makeRow(bin) {
+      const tr = document.createElement('tr');
+      let statusClass = bin.status === 'full' ? 'status-full' : bin.status === 'scheduled' ? 'status-scheduled' : 'status-empty';
+      
+      let actionsHtml = '';
+      let checkboxHtml = '';
+      let deleteIconHtml = '';
+      let assignedInfo = bin.assigned_worker_id ? `(Wkr ID: ${bin.assigned_worker_id})` : '';
+
+      if (USER_ROLE === 'manager') {
+          checkboxHtml = `<input type="checkbox" class="bin-checkbox" data-id="${bin.id}">`;
+          deleteIconHtml = `<button class="delete-btn" onclick="deleteBin(${bin.id})" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+      } 
+      
+      if (USER_ROLE === 'worker') {
+          if (bin.status === 'scheduled' && bin.assigned_worker_id == CURRENT_USER_ID) {
+               actionsHtml = `
+                <button class="pickup-done" style="padding: 8px 15px; font-size: 0.9em; margin: 0;" onclick="openPhotoModal(${bin.id})">
+                    <i class="fa-solid fa-camera"></i> Done
+                </button>
+               `;
+          } else if (bin.status === 'full') {
+               actionsHtml = `
+                <select class="status-select" onchange="updateBinStatus(${bin.id}, this.value)" style="padding: 8px;">
+                    <option value="">Report Level</option>
+                    <option value="full">Set Full</option>
+                </select>
+               `;
+          } else {
+                actionsHtml = '-';
+            }
+      }
+      
+      const isCheckboxHidden = USER_ROLE !== 'manager' ? 'collapse-cell' : '';
+
+      tr.innerHTML = `
+        <td class="checkbox-col-width ${isCheckboxHidden}">${checkboxHtml}</td>
+        <td>${bin.id}</td>
+        <td>${binIcons[bin.type] ? `<img src="${binIcons[bin.type]}" class="bin-img" title="${bin.type}">` : ''} ${bin.type.charAt(0).toUpperCase() + bin.type.slice(1)}</td>
+        <td class="${statusClass} status-cell">${bin.status.replace('_', ' ').charAt(0).toUpperCase() + bin.status.slice(1)} ${assignedInfo}</td>
+        <td>${bin.location || '-'}</td> 
+        <td>${bin.last_pickup || '-'}</td>
+        <td class="delete-cell">${deleteIconHtml || actionsHtml}</td>
+      `;
+      return tr;
+    }
+
+    async function refresh() {
+      const bins = await fetchBins();
+      const tbody = document.querySelector('#binsTable tbody');
+      const ft = document.getElementById('filterType').value;
+      const fs = document.getElementById('filterStatus').value;
+      tbody.innerHTML = '';
+      
+      bins.filter(b => (!ft || b.type === ft) && (!fs || b.status === fs))
+          .forEach(b => tbody.appendChild(makeRow(b)));
+          
+      fetchHistory();
+          
+      const isManager = USER_ROLE === 'manager';
+
+      document.getElementById('checkbox-header').classList.toggle('collapse-cell', !isManager);
+      document.getElementById('manager-form').style.display = isManager ? 'block' : 'none';
+      document.getElementById('manager-actions').style.display = isManager ? 'block' : 'none';
+      document.getElementById('delete-header').textContent = isManager ? 'Actions' : 'Status Actions';
+    }
+    
+    // --- API Handlers ---
+
+    // 1. Assign Worker Form Submission
+    document.getElementById('assignWorkerForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const workerId = document.getElementById('workerSelect').value;
+        if (!workerId) return alert('Please select a worker.');
+
+        const resp = await fetch('/api/pickups/schedule', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ worker_id: workerId })
+        });
+        
+        if (resp.status === 403) return alert('Permission denied: Worker is not associated with you, or you are not a manager.');
+        const data = await resp.json();
+        if (data.scheduled > 0) {
+            alert(`${data.scheduled} bins successfully scheduled and assigned to Worker ID ${workerId}.`);
+        } else {
+            alert('No bins were ready for scheduling (must be "full" and owned by you).');
+        }
+        closeScheduleModal();
+        refresh();
+        setInterval(refresh, 10000);
+    });
+    
+    // 1.5 Worker Photo Confirmation Submission
+    document.getElementById('photoConfirmForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const binId = document.getElementById('photoBinIdInput').value;
+        const fileInput = document.getElementById('pickupPhoto');
+        if (!fileInput.files || fileInput.files.length === 0) {
+             alert('Please select a photo.');
+             return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = async function(event) {
+            // --- MODIFICATION: Send the FULL Base64 string ---
+            const base64Image = event.target.result; 
+            
+            const payload = {
+                status: 'empty', 
+                image_data: base64Image // Send the full data
+            };
+            // -------------------------------------------------
+
+            const resp = await fetch(`/api/bins/status/${binId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await resp.json();
+            
+            if (resp.ok) {
+                alert(`Pickup confirmed and completed for Bin ID ${data.bin_id}. Photo proof submitted.`);
+            } else {
+                alert('Confirmation failed: ' + data.message);
+            }
+            closePhotoModal();
+            refresh();
+            setInterval(refresh, 10000);
+        };
+
+        reader.readAsDataURL(file); 
+    });
+
+    
+    // 2. Add/Update Bin Form Handler (Manager Only)
+    document.getElementById('addBinForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const payload = {
+            type: formData.get('type'), 
+            status: formData.get('status'), 
+            location: formData.get('location')
+        };
+        const resp = await fetch('/api/bins', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        if (resp.ok) {
+            alert(`Bin created successfully and owned by Manager ID ${CURRENT_USER_ID}.`);
+            e.target.reset();
+        } else {
+             alert('Failed to submit bin data. (Manager only action).');
+        }
+        refresh();
+    });
+    
+    // 3. Worker/Manager Single Bin Status Update
+    window.updateBinStatus = async function(id, newStatus) {
+        if (USER_ROLE === 'worker' && newStatus === 'empty') {
+            return openPhotoModal(id);
+        }
+
+        const resp = await fetch(`/api/bins/status/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ status: newStatus })
+        });
+        
+        const data = await resp.json();
+        
+        if (!resp.ok) {
+            alert('Status update failed: ' + data.message);
+        }
+        refresh();
+    }
+    
+    // 4. Delete Bin
+    window.deleteBin = async function(id) {
+      if (!confirm("Are you sure you want to delete Bin ID: " + id + "?")) return;
+      const resp = await fetch(`/api/bins/${id}`, { method: 'DELETE' });
+        if (resp.ok) {
+            alert(`Bin ${id} successfully deleted.`);
+        } else if (resp.status === 403) {
+            alert('Deletion failed: Access denied. You do not own this bin.');
+        } else {
+            alert(`Failed to delete bin ${id}.`);
+        }
+      refresh();
+    }
+
+    // 5. Mark All Pickups Done (Manager Only)
+    document.getElementById('pickupDoneBtn').addEventListener('click', async () => {
+      if (!confirm("Are you sure you want to bulk complete ALL scheduled pickups for bins you own? (This action does not require photo proof.)")) return;
+      const res = await fetch('/api/pickups/done', { method: 'POST' });
+       if (res.status === 403) return alert('Permission denied. Manager only.');
+      const { updated } = await res.json();
+      if (updated > 0) {
+        alert(`${updated} scheduled bins owned by you marked as picked up.`);
+      } else {
+        alert('No scheduled bins owned by you found.');
+      }
+      refresh();
+    });
+
+    // 6. Bulk Update Status (Manager Only)
+    document.getElementById("bulkUpdateBtn").addEventListener("click", async () => {
+      const selected = [...document.querySelectorAll(".bin-checkbox:checked")].map(cb => parseInt(cb.dataset.id));
+      const status = document.getElementById("bulkStatus").value;
+      if (!status) return alert("Select a status first!");
+      if (selected.length === 0) return alert("No bins selected.");
+      
+      const resp = await fetch('/api/bins/bulk', {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ids: selected, status})
+      });
+
+      if (resp.ok) {
+        document.getElementById("selectAll").checked = false;
+        alert(`${selected.length} bins status updated to ${status}. (Only bins owned by you were affected.)`);
+      } else {
+          alert('Bulk update failed. (Manager only action).');
+      }
+      refresh();
+    });
+
+    document.getElementById("selectAll").addEventListener("change", function() {
+      document.querySelectorAll(".bin-checkbox").forEach(cb => cb.checked = this.checked);
+    });
+    
+    document.getElementById("filterType").addEventListener("change", refresh);
+    document.getElementById("filterStatus").addEventListener("change", refresh);
+
+    window.onload = refresh;
+  </script>
+</body>
+</html>
